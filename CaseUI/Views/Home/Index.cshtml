@@ -1,0 +1,149 @@
+﻿@using CaseEL.ViewModels
+@model NoteVM
+
+@{
+    ViewData["Title"] = "Notlar";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<div class="row">
+    <form method="post" asp-action="Index">
+        <input type="hidden" asp-for="Id" />
+        <br />
+        <div class="row">
+            <div class="col-md-12">
+                <span class="text-danger" style="font-weight:bold;margin-right:3px;"></span>
+                <label>Not Detayları:</label>
+                <textarea class="form-control" rows="3" asp-for="Content"></textarea>
+            </div>
+        </div>
+
+        <br />
+
+        <div class="row">
+            <div class="col-md-12">
+                <label for="parentNote">Kaydedilecek Not:</label>
+                <select class="form-control" id="parentNote" name="ParentId">
+                    <option value="">Yeni Not Olarak Kaydet</option>
+                    @if (ViewBag.Result != null)
+                    {
+                        await RenderNoteOptionsAsync(ViewBag.Result as List<NoteVM>);
+                    }
+                </select>
+            </div>
+        </div>
+
+        <br />
+
+        <div class="row">
+            <div class="col-md-6">
+                <input type="submit" class="btn btn-primary container" style="float:right" value="KAYDET" />
+            </div>
+
+            <div class="col-md-6">
+                <input type="reset" class="btn btn-danger container" style="float:left" value="TEMİZLE" />
+            </div>
+        </div>
+
+    </form>
+</div>
+
+@if (ViewBag.Result != null)
+{
+    <h2>Tüm Notlar:</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Not İçeriği</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var note in ViewBag.Result as List<NoteVM>)
+            {
+                <tr>
+                    <td>Not : @note.Content</td>
+                    <td style="text-align: right;">
+                        <button class="btn btn-danger" onclick="deleteNote('@note.Id')">Sil</button>
+                    </td>
+                </tr>
+                RenderChildNotes(note.Children, 1);
+            }
+        </tbody>
+    </table>
+}
+
+
+
+<script>
+    $(document).ready(function () {
+        $('#parentNote').change(function () {
+            var selectedNoteId = $(this).val();
+            if (selectedNoteId !== "") {
+                var selectedNoteContent = $(this).find(':selected').text();
+                $('#Content').val(selectedNoteContent);
+                $('#ParentId').val(selectedNoteId);
+            }
+        });
+    });
+
+    function deleteNote(noteId) {
+        $.ajax({
+            url: '/Home/DeleteNote/' + noteId,
+            type: 'POST',
+            success: function () {
+                $(`li[data-note-id="${noteId}"]`).remove();
+                window.location.href = '/Home/Index';
+            },
+            error: function () {
+            }
+        });
+    }
+
+    @functions {
+        
+        void RenderChildNotes(List<NoteVM> children, int indentLevel)
+    {
+        foreach (var child in children)
+        {
+            <tr>
+                <td style="padding-left: @(30 * indentLevel)px;"> Alt Not : @child.Content</td>
+                <td style="text-align: right;">
+                    <button class="btn btn-danger" onclick="deleteNote('@child.Id')">Sil</button>
+                </td>
+            </tr>
+
+            if (child.Children != null && child.Children.Count > 0)
+            {
+                RenderChildNotes(child.Children, indentLevel + 1);
+            }
+        }
+    }
+
+        async Task RenderNoteOptionsAsync(List<NoteVM> notes)
+        {
+            foreach (var note in notes)
+            {
+                    <option value="@note.Id" > ANA NOT: @note.Content</option>
+                if (note.Children != null && note.Children.Count > 0)
+                {
+                    await RenderChildNoteOptionsAsync(note.Children);
+                }
+            }
+        }
+
+        async Task RenderChildNoteOptionsAsync(List<NoteVM> children)
+        {
+            foreach (var child in children)
+            {
+                    <option value="@child.Id" > @child.Content</option>
+                if (child.Children != null && child.Children.Count > 0)
+                {
+                    await RenderChildNoteOptionsAsync(child.Children);
+                }
+            }
+        }
+    }
+
+</script>
